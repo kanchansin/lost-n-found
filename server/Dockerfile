@@ -1,35 +1,20 @@
-# Use official Node.js LTS as base image
-FROM node:20-alpine
+# Use the official Node.js 18 image on Alpine Linux
+FROM node:18-alpine
 
-# Install build dependencies for native modules
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    sqlite \
-    sqlite-dev
-
-# Set working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if exists)
-COPY package*.json ./
+# Copy the package.json and package-lock.json from the 'server' subdirectory
+COPY server/package*.json ./
 
-# Install dependencies with rebuild for alpine
-RUN npm install --production && npm rebuild
+# Install the server's dependencies
+RUN npm install
 
-# Copy the rest of the application code
-COPY . .
+# Copy the rest of the application's source code from the 'server' subdirectory
+COPY server/ .
 
-# Create necessary directories
-RUN mkdir -p uploads qrcodes
+# Expose port 8080 to the outside world
+EXPOSE 8080
 
-# Expose the port your server runs on
-EXPOSE 3000
-
-# Environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Start the server
-CMD ["node", "server.js"]
+# Command to run the application
+CMD ["npm", "start"]
