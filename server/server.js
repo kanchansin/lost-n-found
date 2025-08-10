@@ -13,7 +13,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.NODE_ENV === 'production' ? false : "http://localhost:3000",
     methods: ["GET", "POST"]
   }
 });
@@ -93,7 +93,6 @@ function initializeDatabase() {
   });
 }
 
-
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   
@@ -101,7 +100,6 @@ io.on('connection', (socket) => {
     console.log('User disconnected:', socket.id);
   });
 });
-
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; 
@@ -113,7 +111,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c; 
 }
-
 
 app.post('/api/items', upload.single('image'), async (req, res) => {
   try {
@@ -129,7 +126,11 @@ app.post('/api/items', upload.single('image'), async (req, res) => {
     const qr_filename = `qr_${unique_id.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
     const qr_code_path = path.join('qrcodes', qr_filename);
     
-    const qrData = `${unique_id}|http://localhost:3000/item/${unique_id}`;
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? process.env.BASE_URL || 'https://your-app.onrender.com'
+      : 'http://localhost:3000';
+    
+    const qrData = `${unique_id}|${baseUrl}/item/${unique_id}`;
     
     await QRCode.toFile(qr_code_path, qrData, {
       color: {
