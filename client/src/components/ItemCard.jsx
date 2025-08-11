@@ -73,6 +73,13 @@ const ItemCard = ({ item }) => {
     return `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`;
   };
 
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://lost-n-found-eta.vercel.app';
+    return `${baseUrl}/uploads/${imagePath}`;
+  };
+
   return (
     <Card className="item-card h-100">
       <Badge 
@@ -85,18 +92,22 @@ const ItemCard = ({ item }) => {
       {item.image_path ? (
         <Card.Img 
           variant="top" 
-          src={`/uploads/${item.image_path}`}
+          src={getImageUrl(item.image_path)}
           className="item-image"
           alt={item.name}
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.parentNode.querySelector('.item-image-placeholder').style.display = 'flex';
+          }}
         />
-      ) : (
-        <div className="item-image-placeholder">
-          <div className="placeholder-icon">
-            {getCategoryIcon(item.category)}
-          </div>
-          <p className="placeholder-text">No Image</p>
+      ) : null}
+      
+      <div className="item-image-placeholder" style={{ display: item.image_path ? 'none' : 'flex' }}>
+        <div className="placeholder-icon">
+          {getCategoryIcon(item.category)}
         </div>
-      )}
+        <p className="placeholder-text">No Image</p>
+      </div>
       
       <Card.Body className="card-body">
         <div className="card-header-info">
@@ -145,7 +156,7 @@ const ItemCard = ({ item }) => {
             </svg>
             <span className="id-label">ID:</span>
             <code className="unique-id-code">
-              {item.unique_id.substring(0, 8)}...
+              {item.unique_id?.substring(0, 8) || 'N/A'}...
             </code>
           </div>
           

@@ -22,7 +22,7 @@ const ItemDetails = () => {
       setError('');
       
       let response;
-      if (id.length > 20) {
+      if (id && id.length > 20) {
         response = await itemsAPI.getItemByUniqueId(id);
       } else {
         response = await itemsAPI.getItem(id);
@@ -83,6 +83,20 @@ const ItemDetails = () => {
 
   const getGoogleMapsUrl = (lat, lon) => {
     return `https://www.google.com/maps?q=${lat},${lon}`;
+  };
+
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://lost-n-found-eta.vercel.app';
+    return `${baseUrl}/uploads/${imagePath}`;
+  };
+
+  const getQRCodeUrl = (qrPath) => {
+    if (!qrPath) return null;
+    if (qrPath.startsWith('http')) return qrPath;
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://lost-n-found-eta.vercel.app';
+    return `${baseUrl}/qrcodes/${qrPath}`;
   };
 
   if (loading) {
@@ -176,18 +190,22 @@ const ItemDetails = () => {
                   {item.image_path ? (
                     <div className="item-image-container">
                       <Image 
-                        src={`/uploads/${item.image_path}`}
+                        src={getImageUrl(item.image_path)}
                         alt={item.name}
                         className="item-image"
                         fluid
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentNode.parentNode.querySelector('.no-image-placeholder').style.display = 'flex';
+                        }}
                       />
                     </div>
-                  ) : (
-                    <div className="no-image-placeholder">
-                      <div className="placeholder-icon">📦</div>
-                      <p className="placeholder-text">No image available</p>
-                    </div>
-                  )}
+                  ) : null}
+                  
+                  <div className="no-image-placeholder" style={{ display: item.image_path ? 'none' : 'flex' }}>
+                    <div className="placeholder-icon">📦</div>
+                    <p className="placeholder-text">No image available</p>
+                  </div>
                   
                   {item.qr_code_path && (
                     <div className="qr-code-section">
@@ -199,9 +217,12 @@ const ItemDetails = () => {
                       </h5>
                       <div className="qr-code-container">
                         <Image 
-                          src={`/qrcodes/${item.qr_code_path}`}
+                          src={getQRCodeUrl(item.qr_code_path)}
                           alt="QR Code"
                           className="qr-code-image"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
                         />
                       </div>
                       <p className="qr-code-description">Scan this code to quickly access this item</p>
@@ -224,7 +245,7 @@ const ItemDetails = () => {
                     <div className="detail-row">
                       <div className="detail-label">Unique ID:</div>
                       <div className="detail-value">
-                        <code className="unique-id-code">{item.unique_id}</code>
+                        <code className="unique-id-code">{item.unique_id || 'N/A'}</code>
                       </div>
                     </div>
                     <div className="detail-row">
