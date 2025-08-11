@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Alert, Badge, Button } from 'react-bootstrap';
+import { Container, Alert, Badge, Button } from 'react-bootstrap';
 import ItemCard from '../components/ItemCard';
 import SearchFilters from '../components/SearchFilters';
 import { itemsAPI } from '../services/api';
 import socketService from '../services/socket';
 import './css/Home.css';
+import '../components/css/ItemCard.css';
 
 const Home = () => {
   const [items, setItems] = useState([]);
@@ -97,47 +98,43 @@ const Home = () => {
     <div className="home-page">
       <section className="hero-section">
         <Container>
-          <Row>
-            <Col lg={10} xl={8} className="mx-auto">
-              <div className="hero-content">
-                <h1 className="hero-title">
-                  <span className="hero-title-text">Lost & Found</span>
-                </h1>
-                <p className="hero-description">
-                  Reuniting people with their belongings through technology. 
-                  Report lost items, help others find their stuff, or scan QR codes 
-                  to instantly connect with owners.
-                </p>
-                
-                <div className="hero-stats">
-                  <div className="stat-card">
-                    <div className="stat-number">{stats.total}</div>
-                    <div className="stat-label">Total Items</div>
-                  </div>
-                  <div className="stat-card stat-lost">
-                    <div className="stat-number">{stats.lost}</div>
-                    <div className="stat-label">Lost</div>
-                  </div>
-                  <div className="stat-card stat-found">
-                    <div className="stat-number">{stats.found}</div>
-                    <div className="stat-label">Found</div>
-                  </div>
-                  <div className="stat-card stat-claimed">
-                    <div className="stat-number">{stats.claimed}</div>
-                    <div className="stat-label">Reunited</div>
-                  </div>
-                </div>
-                
-                {!socketConnected && (
-                  <div className="connection-status">
-                    <small className="text-muted">
-                      ⚠️ Real-time updates unavailable
-                    </small>
-                  </div>
-                )}
+          <div className="hero-content">
+            <h1 className="hero-title">
+              <span className="hero-title-text">Lost & Found</span>
+            </h1>
+            <p className="hero-description">
+              Reuniting people with their belongings through technology. 
+              Report lost items, help others find their stuff, or scan QR codes 
+              to instantly connect with owners.
+            </p>
+            
+            <div className="hero-stats">
+              <div className="stat-card">
+                <div className="stat-number">{stats.total}</div>
+                <div className="stat-label">Total Items</div>
               </div>
-            </Col>
-          </Row>
+              <div className="stat-card stat-lost">
+                <div className="stat-number">{stats.lost}</div>
+                <div className="stat-label">Lost</div>
+              </div>
+              <div className="stat-card stat-found">
+                <div className="stat-number">{stats.found}</div>
+                <div className="stat-label">Found</div>
+              </div>
+              <div className="stat-card stat-claimed">
+                <div className="stat-number">{stats.claimed}</div>
+                <div className="stat-label">Reunited</div>
+              </div>
+            </div>
+            
+            {!socketConnected && (
+              <div className="connection-status">
+                <small className="text-muted">
+                  ⚠️ Real-time updates unavailable
+                </small>
+              </div>
+            )}
+          </div>
         </Container>
         
         <div className="hero-decorations">
@@ -185,39 +182,33 @@ const Home = () => {
           ) : (
             <>
               <div className="results-header">
-                <Row className="align-items-center">
-                  <Col md={8}>
-                    <div className="results-info">
-                      <h3 className="results-title">
-                        {searchApplied ? (
-                          <>
-                            <svg width="24" height="24" fill="currentColor" className="results-icon">
-                              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
-                            </svg>
-                            Search Results
-                          </>
-                        ) : (
-                          <>
-                            <svg width="24" height="24" fill="currentColor" className="results-icon">
-                              <path d="M2 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6zM6 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6zM10 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6zM14 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6z"/>
-                            </svg>
-                            Recent Items
-                          </>
-                        )}
-                      </h3>
-                      <Badge className="results-count">
-                        {items.length} {items.length === 1 ? 'item' : 'items'}
-                      </Badge>
-                    </div>
-                  </Col>
-                  <Col md={4} className="text-end">
-                    {items.length > 0 && (
-                      <small className="results-meta">
-                        Showing {searchApplied ? 'filtered' : 'all'} results
-                      </small>
-                    )}
-                  </Col>
-                </Row>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div className="results-info">
+                    <h3 className="results-title">
+                      {searchApplied ? (
+                        <>
+                          <svg width="24" height="24" fill="currentColor" className="results-icon">
+                            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                          </svg>
+                          Search Results
+                        </>
+                      ) : (
+                        <>
+                          <svg width="24" height="24" fill="currentColor" className="results-icon">
+                            <path d="M2 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6zM6 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6zM10 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6zM14 10.5a1.5 1.5 0 1 1 3 0v6a1.5 1.5 0 0 1-3 0v-6z"/>
+                          </svg>
+                          Recent Items
+                        </>
+                      )}
+                    </h3>
+                    <Badge className="results-count">
+                      {items.length} {items.length === 1 ? 'item' : 'items'}
+                    </Badge>
+                  </div>
+                  <small className="results-meta">
+                    Showing {searchApplied ? 'filtered' : 'all'} results
+                  </small>
+                </div>
               </div>
               
               {items.length === 0 ? (
@@ -253,18 +244,17 @@ const Home = () => {
                   </div>
                 </div>
               ) : (
-                <Row className="items-grid">
+                <div className="items-grid item-card-container">
                   {items.map((item, index) => (
-                    <Col key={item.id} lg={3} md={4} sm={6} className="mb-4">
-                      <div 
-                        className="item-card-wrapper" 
-                        style={{ animationDelay: `${index * 0.1}s` }}
-                      >
-                        <ItemCard item={item} />
-                      </div>
-                    </Col>
+                    <div 
+                      key={item.id}
+                      className="item-card-wrapper" 
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <ItemCard item={item} />
+                    </div>
                   ))}
-                </Row>
+                </div>
               )}
             </>
           )}
