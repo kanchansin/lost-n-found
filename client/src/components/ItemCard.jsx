@@ -75,8 +75,7 @@ const ItemCard = ({ item }) => {
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    if (imagePath.startsWith('http')) return imagePath;
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://lost-n-found-eta.vercel.app';
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     return `${baseUrl}/uploads/${imagePath}`;
   };
 
@@ -97,17 +96,26 @@ const ItemCard = ({ item }) => {
           alt={item.name}
           onError={(e) => {
             e.target.style.display = 'none';
-            e.target.parentNode.querySelector('.item-image-placeholder').style.display = 'flex';
+            e.target.nextSibling.style.display = 'flex';
           }}
         />
-      ) : null}
-      
-      <div className="item-image-placeholder" style={{ display: item.image_path ? 'none' : 'flex' }}>
-        <div className="placeholder-icon">
-          {getCategoryIcon(item.category)}
+      ) : (
+        <div className="item-image-placeholder">
+          <div className="placeholder-icon">
+            {getCategoryIcon(item.category)}
+          </div>
+          <p className="placeholder-text">No Image</p>
         </div>
-        <p className="placeholder-text">No Image</p>
-      </div>
+      )}
+      
+      {item.image_path && (
+        <div className="item-image-placeholder" style={{display: 'none'}}>
+          <div className="placeholder-icon">
+            {getCategoryIcon(item.category)}
+          </div>
+          <p className="placeholder-text">Image not available</p>
+        </div>
+      )}
       
       <Card.Body className="card-body">
         <div className="card-header-info">
@@ -156,7 +164,7 @@ const ItemCard = ({ item }) => {
             </svg>
             <span className="id-label">ID:</span>
             <code className="unique-id-code">
-              {item.unique_id?.substring(0, 8) || 'N/A'}...
+              {item.unique_id.substring(0, 8)}...
             </code>
           </div>
           

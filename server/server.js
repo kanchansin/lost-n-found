@@ -13,8 +13,11 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? false : "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: process.env.NODE_ENV === 'production' ? 
+      ["https://lost-n-found-eta.vercel.app"] : 
+      ["http://localhost:5173"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
   }
 });
 
@@ -23,7 +26,14 @@ let db;
 
 async function initializeDatabase() {
   const SQL = await initSqlJs();
-  db = new SQL.Database();
+  const dbPath = path.join(__dirname, 'database.db');
+  
+  let data;
+  if (fs.existsSync(dbPath)) {
+    data = fs.readFileSync(dbPath);
+  }
+  
+  db = new SQL.Database(data);
   
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS items (
@@ -42,9 +52,28 @@ async function initializeDatabase() {
   `;
   
   db.run(createTableQuery);
+  saveDatabase();
 }
 
-app.use(cors());
+function saveDatabase() {
+  if (db) {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(path.join(__dirname, 'database.db'), buffer);
+  }
+}
+
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' ? 
+    ["https://lost-n-found-eta.vercel.app"] : 
+    ["http://localhost:5173"],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -82,10 +111,6 @@ const upload = multer({
   }
 });
 
-initializeDatabase().then(() => {
-  console.log('Database initialized');
-});
-
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   
@@ -116,11 +141,11 @@ app.post('/api/items', upload.single('image'), async (req, res) => {
     
     const image_path = req.file ? req.file.filename : null;
     const qr_filename = `qr_${unique_id.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
-    const qr_code_path = path.join('qrcodes', qr_filename);
+    const qr_code_path = path.join(__dirname, 'qrcodes', qr_filename);
     
     const baseUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.BASE_URL || 'https://your-app.onrender.com'
-      : 'http://localhost:3000';
+      ? process.env.BASE_URL || `https://lost-n-found-eta.vercel.app`
+      : `http://localhost:5173`;
     
     const qrData = `${unique_id}|${baseUrl}/item/${unique_id}`;
     
@@ -142,9 +167,12 @@ app.post('/api/items', upload.single('image'), async (req, res) => {
       parseFloat(lat) || null, parseFloat(lon) || null, status, category
     ]);
     
-    const item = db.exec('SELECT * FROM items WHERE id = last_insert_rowid()')[0]?.values[0];
+    saveDatabase();
     
-    if (item) {
+    const result = db.exec('SELECT * FROM items WHERE id = last_insert_rowid()');
+    
+    if (result.length > 0 && result[0].values.length > 0) {
+      const item = result[0].values[0];
       const itemObj = {
         id: item[0],
         name: item[1],
@@ -175,161 +203,187 @@ app.post('/api/items', upload.single('image'), async (req, res) => {
 });
 
 app.get('/api/items', (req, res) => {
-  const { keyword, unique_id, lat, lon, radius, status, category } = req.query;
-  
-  let query = 'SELECT * FROM items WHERE 1=1';
-  let params = [];
-  
-  if (keyword) {
-    query += ' AND (name LIKE ? OR description LIKE ?)';
-    params.push(`%${keyword}%`, `%${keyword}%`);
-  }
-  
-  if (unique_id) {
-    query += ' AND unique_id = ?';
-    params.push(unique_id);
-  }
-  
-  if (status) {
-    query += ' AND status = ?';
-    params.push(status);
-  }
-  
-  if (category) {
-    query += ' AND category = ?';
-    params.push(category);
-  }
-  
-  query += ' ORDER BY created_at DESC';
-  
-  const result = db.exec(query, params);
-  let items = [];
-  
-  if (result.length > 0) {
-    items = result[0].values.map(row => ({
-      id: row[0],
-      name: row[1],
-      description: row[2],
-      unique_id: row[3],
-      image_path: row[4],
-      qr_code_path: row[5],
-      lat: row[6],
-      lon: row[7],
-      status: row[8],
-      category: row[9],
-      created_at: row[10]
-    }));
-  }
-  
-  if (lat && lon && radius) {
-    const userLat = parseFloat(lat);
-    const userLon = parseFloat(lon);
-    const searchRadius = parseFloat(radius);
+  try {
+    const { keyword, unique_id, lat, lon, radius, status, category } = req.query;
     
-    items = items.filter(item => {
-      if (item.lat && item.lon) {
-        const distance = calculateDistance(userLat, userLon, item.lat, item.lon);
-        return distance <= searchRadius;
-      }
-      return true;
-    });
+    let query = 'SELECT * FROM items WHERE 1=1';
+    let params = [];
+    
+    if (keyword) {
+      query += ' AND (name LIKE ? OR description LIKE ?)';
+      params.push(`%${keyword}%`, `%${keyword}%`);
+    }
+    
+    if (unique_id) {
+      query += ' AND unique_id = ?';
+      params.push(unique_id);
+    }
+    
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const result = db.exec(query, params);
+    let items = [];
+    
+    if (result.length > 0) {
+      items = result[0].values.map(row => ({
+        id: row[0],
+        name: row[1],
+        description: row[2],
+        unique_id: row[3],
+        image_path: row[4],
+        qr_code_path: row[5],
+        lat: row[6],
+        lon: row[7],
+        status: row[8],
+        category: row[9],
+        created_at: row[10]
+      }));
+    }
+    
+    if (lat && lon && radius) {
+      const userLat = parseFloat(lat);
+      const userLon = parseFloat(lon);
+      const searchRadius = parseFloat(radius);
+      
+      items = items.filter(item => {
+        if (item.lat && item.lon) {
+          const distance = calculateDistance(userLat, userLon, item.lat, item.lon);
+          return distance <= searchRadius;
+        }
+        return true;
+      });
+    }
+    
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  
-  res.json(items);
 });
 
 app.get('/api/items/:id', (req, res) => {
-  const { id } = req.params;
-  const result = db.exec('SELECT * FROM items WHERE id = ?', [id]);
-  
-  if (result.length > 0 && result[0].values.length > 0) {
-    const row = result[0].values[0];
-    const item = {
-      id: row[0],
-      name: row[1],
-      description: row[2],
-      unique_id: row[3],
-      image_path: row[4],
-      qr_code_path: row[5],
-      lat: row[6],
-      lon: row[7],
-      status: row[8],
-      category: row[9],
-      created_at: row[10]
-    };
-    res.json(item);
-  } else {
-    res.status(404).json({ error: 'Item not found' });
+  try {
+    const { id } = req.params;
+    const result = db.exec('SELECT * FROM items WHERE id = ?', [id]);
+    
+    if (result.length > 0 && result[0].values.length > 0) {
+      const row = result[0].values[0];
+      const item = {
+        id: row[0],
+        name: row[1],
+        description: row[2],
+        unique_id: row[3],
+        image_path: row[4],
+        qr_code_path: row[5],
+        lat: row[6],
+        lon: row[7],
+        status: row[8],
+        category: row[9],
+        created_at: row[10]
+      };
+      res.json(item);
+    } else {
+      res.status(404).json({ error: 'Item not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching item:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.get('/api/items/by-unique-id/:unique_id', (req, res) => {
-  const { unique_id } = req.params;
-  const result = db.exec('SELECT * FROM items WHERE unique_id = ?', [unique_id]);
-  
-  if (result.length > 0 && result[0].values.length > 0) {
-    const row = result[0].values[0];
-    const item = {
-      id: row[0],
-      name: row[1],
-      description: row[2],
-      unique_id: row[3],
-      image_path: row[4],
-      qr_code_path: row[5],
-      lat: row[6],
-      lon: row[7],
-      status: row[8],
-      category: row[9],
-      created_at: row[10]
-    };
-    res.json(item);
-  } else {
-    res.status(404).json({ error: 'Item not found' });
+  try {
+    const { unique_id } = req.params;
+    const result = db.exec('SELECT * FROM items WHERE unique_id = ?', [unique_id]);
+    
+    if (result.length > 0 && result[0].values.length > 0) {
+      const row = result[0].values[0];
+      const item = {
+        id: row[0],
+        name: row[1],
+        description: row[2],
+        unique_id: row[3],
+        image_path: row[4],
+        qr_code_path: row[5],
+        lat: row[6],
+        lon: row[7],
+        status: row[8],
+        category: row[9],
+        created_at: row[10]
+      };
+      res.json(item);
+    } else {
+      res.status(404).json({ error: 'Item not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching item by unique ID:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.put('/api/items/:id/claim', (req, res) => {
-  const { id } = req.params;
-  db.run('UPDATE items SET status = ? WHERE id = ?', ['claimed', id]);
-  
-  const result = db.exec('SELECT * FROM items WHERE id = ?', [id]);
-  
-  if (result.length > 0 && result[0].values.length > 0) {
-    const row = result[0].values[0];
-    const item = {
-      id: row[0],
-      name: row[1],
-      description: row[2],
-      unique_id: row[3],
-      image_path: row[4],
-      qr_code_path: row[5],
-      lat: row[6],
-      lon: row[7],
-      status: row[8],
-      category: row[9],
-      created_at: row[10]
-    };
-    io.emit('itemClaimed', item);
-    res.json({ message: 'Item marked as claimed' });
-  } else {
-    res.status(404).json({ error: 'Item not found' });
+  try {
+    const { id } = req.params;
+    db.run('UPDATE items SET status = ? WHERE id = ?', ['claimed', id]);
+    saveDatabase();
+    
+    const result = db.exec('SELECT * FROM items WHERE id = ?', [id]);
+    
+    if (result.length > 0 && result[0].values.length > 0) {
+      const row = result[0].values[0];
+      const item = {
+        id: row[0],
+        name: row[1],
+        description: row[2],
+        unique_id: row[3],
+        image_path: row[4],
+        qr_code_path: row[5],
+        lat: row[6],
+        lon: row[7],
+        status: row[8],
+        category: row[9],
+        created_at: row[10]
+      };
+      io.emit('itemClaimed', item);
+      res.json({ message: 'Item marked as claimed' });
+    } else {
+      res.status(404).json({ error: 'Item not found' });
+    }
+  } catch (error) {
+    console.error('Error claiming item:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 app.get('/api/categories', (req, res) => {
-  const categories = [
-    'Electronics',
-    'Clothing',
-    'Documents',
-    'Jewelry',
-    'Books',
-    'Keys',
-    'Bags',
-    'Sports Equipment',
-    'Toys',
-    'Other'
-  ];
-  res.json(categories);
+  try {
+    const categories = [
+      'Electronics',
+      'Clothing',
+      'Documents',
+      'Jewelry',
+      'Books',
+      'Keys',
+      'Bags',
+      'Sports Equipment',
+      'Toys',
+      'Other'
+    ];
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 app.get('/api/health', (req, res) => {
@@ -351,16 +405,33 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-server.listen(PORT, () => {
-  console.log(`Lost & Found API server running on port ${PORT}`);
-  console.log(`Static files served from:`);
-  console.log(`  - Images: http://localhost:${PORT}/uploads/`);
-  console.log(`  - QR Codes: http://localhost:${PORT}/qrcodes/`);
+initializeDatabase().then(() => {
+  console.log('Database initialized');
+  
+  server.listen(PORT, () => {
+    console.log(`Lost & Found API server running on port ${PORT}`);
+    console.log(`Static files served from:`);
+    console.log(`  - Images: http://localhost:${PORT}/uploads/`);
+    console.log(`  - QR Codes: http://localhost:${PORT}/qrcodes/`);
+  });
+}).catch((error) => {
+  console.error('Failed to initialize database:', error);
+  process.exit(1);
 });
 
 process.on('SIGTERM', () => {
   if (db) {
+    saveDatabase();
     db.close();
-    console.log('Database connection closed.');
+    console.log('Database saved and connection closed.');
   }
+});
+
+process.on('SIGINT', () => {
+  if (db) {
+    saveDatabase();
+    db.close();
+    console.log('Database saved and connection closed.');
+  }
+  process.exit(0);
 });
